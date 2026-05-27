@@ -15,7 +15,7 @@ DATA_PATH = Path("Client-Trainer_Match_Result.csv")
 OUTPUT_DIR = Path("outputs")
 
 TARGET_COLUMN = "match_outcome"
-THRESHOLD = 0.55
+DEFAULT_THRESHOLD = 0.55
 RANDOM_STATE = 42
 
 FEATURE_COLUMNS: List[str] = [
@@ -64,12 +64,13 @@ WEIGHT_PROFILE_KEYS: Dict[str, str] = {
 def validate_dataset(df: pd.DataFrame) -> None:
     """Validate required columns and basic label format."""
     required_columns = FEATURE_COLUMNS + [TARGET_COLUMN]
-    missing_columns = [col for col in required_columns if col not in df.columns]
+    missing_columns = [column for column in required_columns if column not in df.columns]
 
     if missing_columns:
         raise ValueError(f"Missing required columns: {missing_columns}")
 
-    if not set(df[TARGET_COLUMN].unique()).issubset({0, 1}):
+    unique_labels = set(df[TARGET_COLUMN].dropna().unique())
+    if not unique_labels.issubset({0, 1}):
         raise ValueError(f"{TARGET_COLUMN} must contain only 0 and 1 values.")
 
 
@@ -77,7 +78,7 @@ def calculate_weighted_scores(features: np.ndarray, weights: np.ndarray) -> np.n
     """
     Calculate weighted average matching scores.
 
-    The existing VTC matching algorithm uses:
+    This matches the VTC scoring structure:
         final_score = sum(weight_i * score_i) / sum(weight_i)
     """
     weight_sum = float(np.sum(weights))
@@ -88,9 +89,13 @@ def calculate_weighted_scores(features: np.ndarray, weights: np.ndarray) -> np.n
     return (features @ weights) / weight_sum
 
 
-def evaluate_predictions(y_true: np.ndarray, scores: np.ndarray) -> Dict[str, float]:
-    """Convert scores to predictions and return evaluation metrics."""
-    predictions = (scores >= THRESHOLD).astype(int)
+def evaluate_predictions(
+    y_true: np.ndarray,
+    scores: np.ndarray,
+    threshold: float = DEFAULT_THRESHOLD,
+) -> Dict[str, float]:
+    """Convert continuous match scores to binary predictions and return metrics."""
+    predictions = (scores >= threshold).astype(int)
 
     return {
         "accuracy": round(accuracy_score(y_true, predictions), 4),
@@ -100,23 +105,46 @@ def evaluate_predictions(y_true: np.ndarray, scores: np.ndarray) -> Dict[str, fl
     }
 
 
-def optimisation_objective(weights: np.ndarray, features: np.ndarray, labels: np.ndarray) -> float:
+def optimisation_objective(
+    params: np.ndarray,
+    features: np.ndarray,
+    labels: np.ndarray,
+) -> float:
     """
-    Objective function for optimisation.
+    Optimise both factor weights and the decision threshold.
+
+    The first values in params are the feature weights.
+    The final value in params is the threshold used to classify a pair as successful.
 
     scipy minimises the returned value, so negative F1 is used to maximise F1.
     """
+    weights = params[:-1]
+    threshold = float(params[-1])
+
     scores = calculate_weighted_scores(features, weights)
-    metrics = evaluate_predictions(labels, scores)
+    metrics = evaluate_predictions(labels, scores, threshold=threshold)
+
     return -metrics["f1"]
 
 
-def export_weight_profile(weights: np.ndarray, output_path: Path) -> Dict[str, float]:
-    """Export optimised weights using VTC weight profile key names."""
+def export_weight_profile(
+    weights: np.ndarray,
+    threshold: float,
+    output_path: Path,
+) -> Dict[str, float]:
+    """
+    Export optimised weights using VTC weight profile key names.
+
+    The threshold is included for documentation because it is part of the trained
+    decision rule used during validation. The current VTC weight_profiles table may
+    only store the weight keys, so threshold deployment may need to be handled
+    separately if used in production.
+    """
     profile = {
         WEIGHT_PROFILE_KEYS[feature]: round(float(weight), 4)
         for feature, weight in zip(FEATURE_COLUMNS, weights)
     }
+    profile["decision_threshold"] = round(float(threshold), 4)
 
     with output_path.open("w", encoding="utf-8") as file:
         json.dump(profile, file, indent=2)
@@ -146,11 +174,18 @@ def main() -> None:
         dtype=float,
     )
 
+    # Baseline uses the current default weights and existing fixed threshold.
     default_scores = calculate_weighted_scores(x_val, default_weights)
-    default_metrics = evaluate_predictions(y_val, default_scores)
+    default_metrics = evaluate_predictions(
+        y_val,
+        default_scores,
+        threshold=DEFAULT_THRESHOLD,
+    )
 
-    # Weights are constrained to the same 0-5 range used by the admin UI sliders.
+    # Factor weights follow the 0-5 admin UI slider range.
+    # The final parameter is the classification threshold.
     bounds = [(0.0, 5.0)] * len(FEATURE_COLUMNS)
+    bounds.append((0.3, 0.8))
 
     optimisation_result = differential_evolution(
         optimisation_objective,
@@ -161,14 +196,28 @@ def main() -> None:
         polish=True,
     )
 
-    optimised_weights = optimisation_result.x
+    optimised_weights = optimisation_result.x[:-1]
+    optimised_threshold = float(optimisation_result.x[-1])
+
     optimised_scores = calculate_weighted_scores(x_val, optimised_weights)
-    optimised_metrics = evaluate_predictions(y_val, optimised_scores)
+    optimised_metrics = evaluate_predictions(
+        y_val,
+        optimised_scores,
+        threshold=optimised_threshold,
+    )
 
     metrics_df = pd.DataFrame(
         [
-            {"model": "Default weights", **default_metrics},
-            {"model": "Optimised weights", **optimised_metrics},
+            {
+                "model": "Default weights",
+                "threshold": round(DEFAULT_THRESHOLD, 4),
+                **default_metrics,
+            },
+            {
+                "model": "Optimised weights + threshold",
+                "threshold": round(optimised_threshold, 4),
+                **optimised_metrics,
+            },
         ]
     )
 
@@ -176,11 +225,12 @@ def main() -> None:
     profile_path = OUTPUT_DIR / "optimised_weight_profile.json"
 
     metrics_df.to_csv(metrics_path, index=False)
-    profile = export_weight_profile(optimised_weights, profile_path)
+    profile = export_weight_profile(optimised_weights, optimised_threshold, profile_path)
 
     print("Weight optimisation completed successfully.")
     print(f"Metrics saved to: {metrics_path}")
     print(f"Optimised weight profile saved to: {profile_path}")
+    print(f"Optimised threshold: {optimised_threshold:.4f}")
     print("\nOptimised Weight Profile:")
     print(json.dumps(profile, indent=2))
     print("\nValidation Metrics:")
