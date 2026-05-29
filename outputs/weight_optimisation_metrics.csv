@@ -1,3 +1,3 @@
 model,threshold,accuracy,precision,recall,f1
-Default weights,0.55,0.944,0.3636,1.0,0.5333
-Optimised weights + threshold,0.4916,0.968,0.5,0.75,0.6
+Default weights,0.55,0.725,0.4066,0.9737,0.5736
+Optimised weights + threshold,0.6123,0.875,0.6383,0.7895,0.7059
