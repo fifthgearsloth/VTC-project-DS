@@ -124,7 +124,14 @@ def optimisation_objective(
     scores = calculate_weighted_scores(features, weights)
     metrics = evaluate_predictions(labels, scores, threshold=threshold)
 
-    return -metrics["f1"]
+    combined_score = (
+    0.40 * metrics["f1"] +
+    0.25 * metrics["accuracy"] +
+    0.20 * metrics["precision"] +
+    0.15 * metrics["recall"]
+)
+
+    return -combined_score
 
 
 def export_weight_profile(
