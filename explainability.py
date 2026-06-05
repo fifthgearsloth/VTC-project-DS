@@ -1,8 +1,22 @@
 # explainability.py
 # Reads all 11 factor scores from the dataset and generates a plain English
 # explanation for why a trainer was recommended to a client.
+#
+# The 11 matching factors (from Client-Trainer_Match_Result.csv):
+#   1.  goal_score          : fitness goal alignment
+#   2.  style_score         : training style compatibility
+#   3.  persona_score       : coaching personality fit
+#   4.  gender_score        : gender preference
+#   5.  availability_score  : schedule overlap
+#   6.  age_score           : client within trainer's age range
+#   7.  qualification_score : trainer certifications
+#   8.  education_score     : trainer education background
+#   9.  location_score      : proximity for in-person sessions
+#  10.  recency_score       : how recently the trainer's profile was updated
+#  11.  experience_score    : trainer experience level
 
 import json
+from functools import lru_cache
 import pandas as pd
 
 CSV_PATH     = "Client-Trainer_Match_Result.csv"
@@ -133,6 +147,7 @@ def load_trainer_profile(trainer_id):
     }
 
 
+@lru_cache(maxsize=None)
 def load_weight_profile():
     """
     Loads optimised weights and decision threshold from JSON.
