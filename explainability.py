@@ -48,59 +48,59 @@ FALLBACK_PRIORITY = {
 # None means skip that tier (not worth mentioning).
 FACTOR_PHRASES = {
     "goal_score": (
-        lambda t: f"your fitness goals align closely with their specialisation in {t.get('goal_tags', 'their focus areas')}",
-        lambda t: "your fitness goals partially overlap with what this trainer focuses on",
-        lambda t: "your fitness goals don't closely match this trainer's specialisation",
+        lambda t: f"your fitness goals align with their focus on {t.get('goal_tags', 'their key areas')}",
+        lambda t: "your fitness goals partially overlap with their focus areas",
+        lambda t: "your fitness goals don't closely match their focus areas",
     ),
     "style_score": (
-        lambda t: f"your preferred training style matches well with what they offer ({t.get('styles_offered', 'their sessions')})",
+        lambda t: "your training style preferences are a strong match for what they offer",
         lambda t: "there is some overlap in preferred training styles",
-        lambda t: "your preferred training style doesn't closely match what this trainer offers",
+        lambda t: "your preferred training style doesn't closely match what they offer",
     ),
     "persona_score": (
-        lambda t: "the trainer's coaching personality suits your stated preferences",
-        lambda t: "the trainer's personality is a reasonable fit for what you're looking for",
-        lambda t: "the trainer's coaching style may not fully match your personality preference",
+        lambda t: "their coaching personality is a good fit for your preferences",
+        lambda t: "their coaching personality is a reasonable fit for what you're looking for",
+        lambda t: "their coaching style may not fully match your personality preference",
     ),
     "qualification_score": (
-        lambda t: "the trainer holds certifications that match what you're looking for",
-        lambda t: "the trainer's qualifications partially meet your preference",
-        lambda t: "the trainer's certifications may not fully match your preference",
+        lambda t: "they hold the certifications you're looking for",
+        lambda t: "their qualifications partially match what you're looking for",
+        lambda t: "their certifications may not fully match your preference",
     ),
     "gender_score": (
-        lambda t: "your gender preference is met",
+        lambda t: "they match your gender preference",
         None,
-        lambda t: "the trainer doesn't match your stated gender preference",
+        lambda t: "they don't match your stated gender preference",
     ),
     "availability_score": (
         lambda t: "your schedules overlap well",
-        lambda t: "there is some schedule overlap with this trainer",
+        lambda t: "there is some schedule overlap",
         lambda t: "limited schedule overlap may make booking sessions difficult",
     ),
     "experience_score": (
-        lambda t: "the trainer's experience level matches what you're looking for",
-        lambda t: "the trainer's experience is a reasonable fit",
-        lambda t: "the trainer's experience level may not match your preference",
+        lambda t: "their experience level is exactly what you're looking for",
+        lambda t: "their experience level is a reasonable fit",
+        lambda t: "their experience level may not match your preference",
     ),
     "age_score": (
-        lambda t: "you fall within the age group this trainer typically works with",
+        lambda t: "you're within their typical client age range",
         None,
-        lambda t: "you may be outside the age group this trainer usually works with",
+        lambda t: "you may be outside the age group they usually work with",
     ),
     "location_score": (
-        lambda t: "the trainer is conveniently located for in-person sessions",
-        lambda t: "the trainer is within a reasonable distance",
+        lambda t: "they're conveniently located for in-person sessions",
+        lambda t: "they're within a reasonable distance",
         lambda t: "distance may be a factor for in-person sessions",
     ),
     "recency_score": (
-        lambda t: "the trainer's profile and availability are up to date",
+        lambda t: "their profile and availability are up to date",
         None,
-        lambda t: "the trainer's profile hasn't been updated recently",
+        lambda t: "their profile hasn't been updated recently",
     ),
     "education_score": (
-        lambda t: "the trainer's education background meets your preference",
-        lambda t: "the trainer's education is a reasonable match",
-        lambda t: "the trainer's education level may not align with your preference",
+        lambda t: "their education background meets your preference",
+        lambda t: "their education is a reasonable match",
+        lambda t: "their education level may not align with your preference",
     ),
 }
 
@@ -222,7 +222,13 @@ def explain_match(trainer, scores):
     summary = f"{strong_count} of the 11 factors line up well."
 
     if top_positives:
-        reason_text = "This trainer stands out because " + ", and ".join(top_positives) + "."
+        if len(top_positives) == 1:
+            joined = top_positives[0]
+        elif len(top_positives) == 2:
+            joined = top_positives[0] + " and " + top_positives[1]
+        else:
+            joined = ", ".join(top_positives[:-1]) + ", and " + top_positives[-1]
+        reason_text = "This trainer stands out because " + joined + "."
     else:
         reason_text = "This trainer is the closest available based on your overall profile."
 
