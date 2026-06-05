@@ -219,7 +219,7 @@ def explain_match(trainer, scores):
     else:
         verdict = "Closest available match."
 
-    summary = f"{strong_count} out of 11 factors are a strong match."
+    summary = f"{strong_count} of the 11 factors line up well."
 
     if top_positives:
         reason_text = "This trainer stands out because " + ", and ".join(top_positives) + "."
