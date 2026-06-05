@@ -4,6 +4,7 @@ import json
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
+from explainability import explain_match
 
 st.set_page_config(page_title="VTC Matching Dashboard", layout="wide")
 
@@ -193,17 +194,27 @@ with tab1:
 
             rank_labels = {1: "Rank 1", 2: "Rank 2", 3: "Rank 3"}
 
-            def generate_why(goal_score, style_score, persona_score, trainer):
-                reasons = []
-                if goal_score >= 0.5:
-                    reasons.append(f"your goals align closely with this trainer's specialisation in {trainer['goal_tags'][:60]}")
-                if style_score >= 0.5:
-                    reasons.append("your preferred training styles match well with what this trainer offers")
-                if persona_score >= 0.5:
-                    reasons.append("the trainer's personality and coaching approach suit your stated preferences")
-                if not reasons:
-                    reasons.append("this trainer is the closest available match based on your overall profile")
-                return "Recommended because " + ", and ".join(reasons) + "."
+            def generate_why(goal_score, style_score, persona_score, final_score, trainer_row):
+                # dashboard only computes 3 live scores; others set to 0.40 (silent zone)
+                scores = {
+                    "goal_score"          : goal_score,
+                    "style_score"         : style_score,
+                    "persona_score"       : persona_score,
+                    "gender_score"        : 0.40,
+                    "availability_score"  : 0.40,
+                    "age_score"           : 0.40,
+                    "qualification_score" : 0.40,
+                    "education_score"     : 0.40,
+                    "location_score"      : 0.40,
+                    "recency_score"       : 0.40,
+                    "experience_score"    : 0.40,
+                    "final_score"         : final_score,
+                }
+                trainer = {
+                    "goal_tags"     : str(trainer_row.get("goal_tags", "")),
+                    "styles_offered": str(trainer_row.get("styles_offered", "")),
+                }
+                return explain_match(trainer, scores)
 
             left, right = st.columns(2)
 
@@ -240,7 +251,7 @@ with tab1:
                 st.subheader("Semantic AI Model")
                 for _, row in semantic_df.iterrows():
                     bio = str(row["bio"]) if pd.notna(row["bio"]) else "No bio available"
-                    why = generate_why(row["goal_score"], row["style_score"], row["persona_score"], row)
+                    why = generate_why(row["goal_score"], row["style_score"], row["persona_score"], row["final_score"], row)
                     st.markdown(f"""
                     <div class="card card-semantic">
                         <span class="rank-badge">{rank_labels.get(int(row['rank']), f"Rank {int(row['rank'])}")}</span>
