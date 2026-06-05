@@ -417,7 +417,7 @@ RUN python -c "from sentence_transformers import SentenceTransformer; \
     SentenceTransformer('all-MiniLM-L6-v2')"
 
 COPY . .
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8080", "--workers", "1"]
+CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8080", "--workers", "1"]
 ```
 
 Single worker is correct here — multiple workers would each load a separate model copy into memory. Add a `GET /health` endpoint returning `{"status": "ok"}` so your platform can do liveness checks.
