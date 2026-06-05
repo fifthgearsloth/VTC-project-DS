@@ -28,20 +28,20 @@ SCORE_TO_WEIGHT = {
     "experience_score"    : "w_exp",
 }
 
-# Goals and style matter most to a real training match so they surface first.
-# Higher number = shown first when multiple factors are strong.
-FACTOR_PRIORITY = {
-    "goal_score"          : 10,
-    "style_score"         : 10,
-    "availability_score"  : 8,
-    "persona_score"       : 7,
-    "qualification_score" : 6,
-    "experience_score"    : 5,
-    "gender_score"        : 4,
-    "age_score"           : 4,
-    "location_score"      : 3,
-    "recency_score"       : 2,
-    "education_score"     : 2,
+# Fallback priorities if the weights file is missing.
+# Normally these are loaded directly from the optimised weights JSON.
+FALLBACK_PRIORITY = {
+    "goal_score"          : 2.5,
+    "style_score"         : 3.0,
+    "availability_score"  : 4.6,
+    "persona_score"       : 3.8,
+    "qualification_score" : 4.5,
+    "experience_score"    : 3.2,
+    "gender_score"        : 1.6,
+    "age_score"           : 1.6,
+    "location_score"      : 1.8,
+    "recency_score"       : 2.6,
+    "education_score"     : 0.1,
 }
 
 # For each factor: what to say when it's strong, okay, or weak.
@@ -133,57 +133,88 @@ def load_trainer_profile(trainer_id):
     }
 
 
-def compute_final_score(scores):
-    # use optimised weights if available, otherwise fall back to simple average
+def load_weight_profile():
+    """
+    Loads optimised weights and decision threshold from JSON.
+    Returns (weights dict, threshold float, priority dict).
+    Falls back to defaults if file is missing.
+    """
     try:
         with open(WEIGHTS_PATH) as f:
-            weights = json.load(f)
+            profile = json.load(f)
+
+        threshold = float(profile.get("decision_threshold", 0.55))
+
+        # reverse map: w_goals -> goal_score etc.
+        key_to_col = {v: k for k, v in SCORE_TO_WEIGHT.items()}
+
+        weights   = {}
+        priority  = {}
+        for key, val in profile.items():
+            if key == "decision_threshold":
+                continue
+            col = key_to_col.get(key)
+            if col:
+                weights[col]  = float(val)
+                priority[col] = float(val)  # use actual weight as priority
+
+        return weights, threshold, priority
+
+    except FileNotFoundError:
+        return {}, 0.55, FALLBACK_PRIORITY
+
+
+def compute_final_score(scores):
+    # use optimised weights if available, otherwise fall back to simple average
+    weights, _, _ = load_weight_profile()
+    if weights:
         total, weighted = 0.0, 0.0
-        for col, key in SCORE_TO_WEIGHT.items():
-            w = weights.get(key, 1.0)
+        for col in SCORE_TO_WEIGHT:
+            w = weights.get(col, 1.0)
             weighted += w * scores.get(col, 0.0)
             total += w
         return round(weighted / total, 4) if total else 0.0
-    except FileNotFoundError:
-        vals = list(scores.values())
-        return round(sum(vals) / len(vals), 4) if vals else 0.0
+    vals = list(scores.values())
+    return round(sum(vals) / len(vals), 4) if vals else 0.0
 
 
 def explain_match(trainer, scores):
     """
     Builds a plain English explanation using all 11 factors.
-    Prioritises goals and style when picking the top 3 highlights.
-    Includes a summary count of how many factors are strong.
+    Factor priorities and verdict threshold are loaded from the optimised weights JSON
+    so the explanation stays in sync with the model automatically.
     """
+    _, threshold, priority = load_weight_profile()
+
     positives    = []
     concerns     = []
     strong_count = 0
 
     for factor, (strong_fn, okay_fn, weak_fn) in FACTOR_PHRASES.items():
-        val      = scores.get(factor, 0)
-        priority = FACTOR_PRIORITY.get(factor, 1)
+        val = scores.get(factor, 0)
+        pri = priority.get(factor, 1.0)
 
         if val >= STRONG:
             strong_count += 1
             if strong_fn:
-                positives.append((priority * val, strong_fn(trainer)))
+                positives.append((pri * val, strong_fn(trainer)))
         elif val >= OKAY and okay_fn:
-            positives.append((priority * val * 0.5, okay_fn(trainer)))
+            positives.append((pri * val * 0.5, okay_fn(trainer)))
 
         if val < WEAK and weak_fn:
             concerns.append((val, weak_fn(trainer)))
 
-    # highest priority and score first, worst concerns first
     positives.sort(key=lambda x: x[0], reverse=True)
     concerns.sort(key=lambda x: x[0])
 
     top_positives = [p for _, p in positives[:3]]
     top_concerns  = [c for _, c in concerns[:3]]
 
+    # verdict uses the learned threshold from weight optimisation, not a hardcoded value
     final = scores.get("final_score", 0)
-    if final >= STRONG:
+    if final >= threshold:
         verdict = "Strong match."
-    elif final >= OKAY:
+    elif final >= threshold * 0.75:
         verdict = "Decent match."
     else:
         verdict = "Closest available match."
