@@ -21,7 +21,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from explainability import explain_match
 
 EXCEL_PATH = "semantic_matching__client_trainer_dataset.xlsx"
-LLM_MODEL  = "llama3-70b-8192"   # free on Groq, best for tool calling
+LLM_MODEL  = "llama-3.3-70b-versatile"   # free on Groq, supports tool calling
 
 SYSTEM_PROMPT = """You are the Voltage Training Club (VTC) AI Trainer Matching Assistant.
 Your job is to help clients find the right personal trainer through friendly conversation.
