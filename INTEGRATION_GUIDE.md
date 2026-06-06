@@ -1,10 +1,10 @@
-# VTC AI Matching — Integration Guide
+# VTC AI Matching Integration Guide
 
-RMIT Industry Project 2026 - For the VTC engineering team
+RMIT Industry Project 2026. For the VTC engineering team.
 
 ---
 
-The matching edge function already scores trainers across 11 factors. This integration improves three of them. Instead of exact keyword matching (Jaccard) for goals, training style, and personality, a Python service uses sentence embeddings that understand meaning. "Fat loss" and "body recomposition" mean the same thing - Jaccard scores them as zero, embeddings score them at ~0.89.
+The matching edge function already scores trainers across 11 factors. This integration improves three of them. Instead of exact keyword matching (Jaccard) for goals, training style, and personality, a Python service uses sentence embeddings that understand meaning. "Fat loss" and "body recomposition" mean the same thing. Jaccard scores them as zero, embeddings score them at ~0.89.
 
 The other 8 factors (gender, availability, age, qualifications, education, location, recency, experience) are untouched. The weighted average formula in TypeScript stays exactly as it is. You're only changing the source of three values going into it.
 
@@ -13,8 +13,8 @@ The other 8 factors (gender, availability, age, qualifications, education, locat
 | | Before | After |
 |---|---|---|
 | Goals, Style, Persona scoring | Jaccard keyword overlap | Semantic embedding similarity |
-| Factor weights | Hardcoded defaults | Data-derived from synthetic benchmark |
-| Match card explanation | Raw subscore JSON | Plain-English string |
+| Factor weights | Hardcoded defaults | Data derived from synthetic benchmark |
+| Match card explanation | Raw subscore JSON | Plain English string |
 
 ---
 
@@ -26,9 +26,9 @@ Client request
       ▼
 match-candidates/index.ts  (unchanged structure)
       │
-      ├─► Hard filters, gender filter, approval - UNCHANGED
+      ├─► Hard filters, gender filter, approval  (unchanged)
       │
-      ├─► Availability, location, age, quals, etc. - UNCHANGED
+      ├─► Availability, location, age, quals, etc.  (unchanged)
       │
       └─► POST /batch-score  →  Python AI service (deployed separately)
                                     Returns goal_score, style_score, persona_score
@@ -37,16 +37,16 @@ match-candidates/index.ts  (unchanged structure)
           Slot those 3 scores into the existing 11-factor weighted total
                 │
                 ▼
-          POST /explain  →  plain-English explanation for top matches
+          POST /explain  →  plain English explanation for top matches
 ```
 
-The Python service runs as a separate HTTP process — it can't run inside Supabase Edge Functions because the embedding model and numpy aren't compatible with Deno. Any platform that hosts a persistent Docker container works (Railway, Render, Fly.io, Cloud Run).
+The Python service runs as a separate HTTP process. It cannot run inside Supabase Edge Functions because the embedding model and numpy are not compatible with Deno. Any platform that hosts a persistent Docker container works (Railway, Render, Fly.io, Cloud Run).
 
 ---
 
 ## The important bit: how the scores merge back in
 
-Before making any changes to the edge function, it's worth being precise about what the Python service actually does.
+Before making any changes to the edge function, it is worth being precise about what the Python service actually does.
 
 The edge function computes a weighted average across all 11 factors:
 
@@ -54,7 +54,7 @@ The edge function computes a weighted average across all 11 factors:
 final_score = (w₁×score₁ + w₂×score₂ + ... + w₁₁×score₁₁) / (w₁ + ... + w₁₁)
 ```
 
-The Python service replaces exactly three of those inputs — the ones currently computed with Jaccard:
+The Python service replaces exactly three of those inputs, the ones currently computed with Jaccard:
 
 | Factor | Currently | After integration |
 |---|---|---|
@@ -62,13 +62,13 @@ The Python service replaces exactly three of those inputs — the ones currently
 | `style_score` | `jaccardSimilarity(clientStyles, trainer.styles_offered)` | returned by `/batch-score` |
 | `persona_score` | `jaccardSimilarity(clientPersona, trainer.personality_traits)` | returned by `/batch-score` |
 
-Everything else — the other 8 scores, the weight lookups, the weighted average itself — stays in TypeScript and doesn't change. You're swapping three inputs, not rewriting the algorithm.
+Everything else, including the other 8 scores, the weight lookups and the weighted average itself, stays in TypeScript and doesn't change. You're swapping three inputs, not rewriting the algorithm.
 
 ---
 
 ## The API
 
-The Python service needs to expose these four endpoints. The shapes below are the contract — the implementation is up to you.
+The Python service needs to expose these four endpoints. The shapes below are the contract and the implementation is up to you.
 
 ### POST /batch-score
 
@@ -93,7 +93,7 @@ This is the main one to use in production. Pass the client profile and all candi
   ]
 }
 
-// Response — sorted by final_score descending
+// Response sorted by final_score descending
 [
   {
     "trainer_id": "T001",
@@ -107,11 +107,11 @@ This is the main one to use in production. Pass the client profile and all candi
 
 ### POST /semantic-score
 
-Same as above but for a single pair. Useful for testing or spot-checking a specific match — don't use this in the scoring loop.
+Same as above but for a single pair. Useful for testing or spot checking a specific match. Don't use this in the scoring loop.
 
 ### POST /explain
 
-Takes a trainer profile and all 11 factor scores, returns a plain-English explanation string. If you don't include `final_score` in the scores object, the service computes it from the optimised weights automatically.
+Takes a trainer profile and all 11 factor scores and returns a plain English explanation string. If you don't include `final_score` in the scores object, the service computes it from the optimised weights automatically.
 
 ```json
 // Request
@@ -152,24 +152,27 @@ Returns the current optimised weight profile from `outputs/optimised_weight_prof
 
 ## Changes to match-candidates/index.ts
 
-Read the file before making any of these changes — the variable names below are illustrative. Substitute whatever your codebase actually calls things.
+Read the file before making any of these changes. The variable names below are illustrative. Substitute whatever your codebase actually calls things.
 
-### 1. Add the environment variable
+### 1. Add the environment variables
 
 In your Supabase project settings:
 ```
 AI_SERVICE_URL=https://your-deployed-service.com
+AI_SERVICE_SECRET=your-secret-key-here
 ```
 
 Locally in `.env`:
 ```
 AI_SERVICE_URL=http://localhost:8000
+AI_SERVICE_SECRET=your-secret-key-here
 ```
 
 ### 2. Add a helper near the top of the edge function
 
 ```typescript
-const AI_SERVICE_URL = Deno.env.get("AI_SERVICE_URL") ?? "http://localhost:8000";
+const AI_SERVICE_URL    = Deno.env.get("AI_SERVICE_URL")    ?? "http://localhost:8000";
+const AI_SERVICE_SECRET = Deno.env.get("AI_SERVICE_SECRET") ?? "";
 
 interface ClientSemanticProfile {
   goal_tags: string;
@@ -200,14 +203,17 @@ async function getSemanticScores(
   try {
     const res = await fetch(`${AI_SERVICE_URL}/batch-score`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${AI_SERVICE_SECRET}`,
+      },
       body: JSON.stringify({ client, trainers }),
     });
     if (!res.ok) throw new Error(`status ${res.status}`);
     const results: SemanticScore[] = await res.json();
     return new Map(results.map((r) => [r.trainer_id, r]));
   } catch (err) {
-    // Service is down — returning an empty map triggers the Jaccard fallback below
+    // Service is down. Returning an empty map triggers the Jaccard fallback below.
     console.error("AI service unavailable, falling back to Jaccard:", err);
     return new Map();
   }
@@ -245,7 +251,7 @@ const goalScore    = jaccardSimilarity(clientGoals,   trainer.goal_tags);
 const styleScore   = jaccardSimilarity(clientStyles,  trainer.styles_offered);
 const personaScore = jaccardSimilarity(clientPersona, trainer.personality_traits);
 
-// After — falls back to Jaccard automatically if the service was unreachable
+// After. Falls back to Jaccard automatically if the service was unreachable.
 const sem          = semanticScores.get(trainer.trainer_id);
 const goalScore    = sem?.goal_score    ?? jaccardSimilarity(clientGoals,   trainer.goal_tags);
 const styleScore   = sem?.style_score   ?? jaccardSimilarity(clientStyles,  trainer.styles_offered);
@@ -257,7 +263,7 @@ const personaScore = sem?.persona_score ?? jaccardSimilarity(clientPersona, trai
 
 ### 5. Add explanations to the top matches
 
-After ranking, call `/explain` for however many results you're showing. At this point you already have all 11 factor scores on each trainer object — just pass them through:
+After ranking, call `/explain` for however many results you're showing. At this point you already have all 11 factor scores on each trainer object, so just pass them through:
 
 ```typescript
 async function getExplanation(
@@ -267,7 +273,10 @@ async function getExplanation(
   try {
     const res = await fetch(`${AI_SERVICE_URL}/explain`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${AI_SERVICE_SECRET}`,
+      },
       body: JSON.stringify({ trainer, scores }),
     });
     if (!res.ok) return "";
@@ -312,7 +321,7 @@ Wire `explanation` into the response payload and surface it in `TrainerMatchCard
 
 ## Importing the optimised weights
 
-The file `outputs/optimised_weight_profile.json` has weights derived from the synthetic training dataset. They outperform the hardcoded defaults — F1 improved from 0.574 to 0.706, accuracy from 72.5% to 87.5% on the validation set.
+The file `outputs/optimised_weight_profile.json` has weights derived from the synthetic training dataset. They outperform the hardcoded defaults. F1 improved from 0.574 to 0.706 and accuracy from 72.5% to 87.5% on the validation set.
 
 The biggest shifts worth knowing about: availability and qualifications ended up much more predictive than their default weights suggest (both jumped to ~4.5). Education dropped to nearly zero. Personality ended up more important than the default 0.7 assumed.
 
@@ -330,7 +339,7 @@ The biggest shifts worth knowing about: availability and qualifications ended up
 | `w_gender` | 1.0 | 1.57 |
 | `w_edu` | 0.5 | 0.10 |
 
-To apply them, run this in the Supabase SQL editor — no code changes needed:
+To apply them, run this in the Supabase SQL editor with no code changes needed:
 
 ```sql
 UPDATE weight_profiles
@@ -349,7 +358,7 @@ SET
 WHERE profile_name = 'default';
 ```
 
-The `decision_threshold` value in the JSON (0.6123) isn't a column in `weight_profiles` — it was used during optimisation to classify pairs as successful or not. You only need it if you build a binary gate on top of the score, which isn't part of the current algorithm.
+The `decision_threshold` value in the JSON (0.6123) is not a column in `weight_profiles`. It was used during optimisation to classify pairs as successful or not. You only need it if you build a binary gate on top of the score, which is not part of the current algorithm.
 
 ---
 
@@ -373,9 +382,9 @@ You don't have to do all of this at once. Each step is independent and reversibl
 
 Once you have enough real behavioral data in `match_events`, you can re-derive the weights from actual user behaviour instead of the synthetic dataset.
 
-Wait until you have at least ~500 confirmed booking events before running the first live update — below that the sample is too small to be reliable.
+Wait until you have at least ~500 confirmed booking events before running the first live update. Below that the sample is too small to be reliable.
 
-To define a "successful match" from your event log:
+To define a successful match from your event log:
 
 ```sql
 -- Adjust event_type values to match what your match_events table actually logs
@@ -402,7 +411,7 @@ The full automated pipeline design for this is in the Feedback Loop Architecture
 
 ## Deploying the Python service
 
-The service needs to run as a persistent process — not a serverless function, because the embedding model (~90 MB) needs to stay loaded in memory between requests. Cold-starting it on every request would be too slow.
+The service needs to run as a persistent process rather than a serverless function, because the embedding model (~90 MB) needs to stay loaded in memory between requests. Starting it cold on every request would be too slow.
 
 Recommended setup: FastAPI + uvicorn, single worker.
 
@@ -420,11 +429,40 @@ COPY . .
 CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8080", "--workers", "1"]
 ```
 
-Single worker is correct here — multiple workers would each load a separate model copy into memory. Add a `GET /health` endpoint returning `{"status": "ok"}` so your platform can do liveness checks.
+Single worker is correct here. Multiple workers would each load a separate model copy into memory. Add a `GET /health` endpoint returning `{"status": "ok"}` so your platform can do liveness checks.
 
 Railway, Render, Fly.io, and GCP Cloud Run all work fine for this. Any platform that runs a persistent container does.
 
-One privacy note: the model runs entirely inside your deployment. No client or trainer data is sent to any external service — not during scoring, not during explanation generation.
+---
+
+## Securing the service
+
+The Python service has no built in auth. Without protection, anyone with the URL can call it. Before deploying, add a shared secret check so only your edge function can reach it.
+
+On the service side, verify the `Authorization` header on every request. In FastAPI:
+
+```python
+from fastapi import Header, HTTPException
+
+async def verify_token(authorization: str = Header(...)):
+    expected = f"Bearer {os.getenv('AI_SERVICE_SECRET', '')}"
+    if authorization != expected:
+        raise HTTPException(status_code=401, detail="Unauthorised")
+```
+
+Add `authorization: str = Header(...)` to each endpoint that should be protected, or apply it globally as a dependency.
+
+Set the secret as an environment variable on your host:
+
+```
+AI_SERVICE_SECRET=your-secret-key-here
+```
+
+Use the same value in Supabase so the edge function and the service share it. Generate a long random string. Something like `openssl rand -hex 32` works fine.
+
+---
+
+One privacy note: the model runs entirely inside your deployment. No client or trainer data is sent to any external service, not during scoring and not during explanation generation.
 
 ---
 
@@ -433,11 +471,11 @@ One privacy note: the model runs entirely inside your deployment. No client or t
 | File | What it does |
 |---|---|
 | `jaccard_baseline.py` | Python replica of the current Jaccard scoring across all 11 factors (D1) |
-| `semantic.py` | Batch semantic matching — encodes and scores all client–trainer pairs (D2) |
+| `semantic.py` | Batch semantic matching that encodes and scores all client and trainer pairs (D2) |
 | `weight_optimisation.py` | Derives optimised weights from labelled data using differential evolution (D3) |
-| `explainability.py` | Generates plain-English match explanations from all 11 factor scores (D5) |
+| `explainability.py` | Generates plain English match explanations from all 11 factor scores (D5) |
 | `app.py` | Streamlit demo dashboard comparing Jaccard vs semantic results |
 
 ---
 
-*VTC x RMIT Industry Project 2026 — Confidential*
+*VTC x RMIT Industry Project 2026. Confidential.*
