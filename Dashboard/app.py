@@ -68,9 +68,9 @@ div[data-testid="stMarkdownContainer"] *:hover { color: inherit !important; }
 
 @st.cache_data
 def load_data():
-    trainers = pd.read_excel("../Semantic_matching/semantic_matching__client_trainer_dataset.xlsx", sheet_name="trainers")
-    metrics = pd.read_csv("../outputs/weight_optimisation_metrics.csv")
-    with open("../outputs/optimised_weight_profile.json") as f:
+    trainers = pd.read_excel("Semantic_matching/semantic_matching__client_trainer_dataset.xlsx", sheet_name="trainers")
+    metrics = pd.read_csv("outputs/weight_optimisation_metrics.csv")
+    with open("outputs/optimised_weight_profile.json") as f:
         weights = json.load(f)
     return trainers, metrics, weights
 
