@@ -51,7 +51,7 @@ MATCH_EVENTS_PATH = Path("Feedback_Architecture/match_events_simulation.csv")
 OPTIMISER_SCRIPT = Path("Weight_optimization/weight_optimisation.py")
 
 # The current optimiser expects this filename as input.
-OPTIMISER_INPUT_PATH = Path("Client-Trainer_Match_Result.csv")
+OPTIMISER_INPUT_PATH = Path("Weight_optimization/Client-Trainer_Match_Result.csv")
 
 # Audit output folder for Objective 3.
 OUTPUT_DIR = Path("outputs_objective3")
