@@ -6,7 +6,7 @@ from sklearn.metrics.pairwise import cosine_similarity  # type: ignore
 # CONFIG
 # ==============================
 
-DATA_PATH = "semantic_matching__client_trainer_dataset.xlsx"
+DATA_PATH = "Semantic_matching/semantic_matching__client_trainer_dataset.xlsx"
 MODEL_NAME = "all-MiniLM-L6-v2"
 
 WEIGHTS = {
