@@ -4,7 +4,7 @@ import pandas as pd  # type: ignore
 # CONFIG
 # ==============================
 
-DATA_PATH = "semantic_matching__client_trainer_dataset.xlsx"
+DATA_PATH = "Semantic_matching/semantic_matching__client_trainer_dataset.xlsx"
 
 WEIGHTS = {
     "goal": 1.5,
