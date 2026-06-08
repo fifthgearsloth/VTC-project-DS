@@ -54,7 +54,7 @@ OPTIMISER_SCRIPT = Path("Weight_optimization/weight_optimisation.py")
 OPTIMISER_INPUT_PATH = Path("Weight_optimization/Client-Trainer_Match_Result.csv")
 
 # Audit output folder for Objective 3.
-OUTPUT_DIR = Path("outputs_objective3")
+OUTPUT_DIR = Path("outputs")
 
 # Minimum activation thresholds.
 MIN_EVENT_ROWS = 500
