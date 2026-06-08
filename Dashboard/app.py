@@ -4,7 +4,7 @@ import json
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
-from explainability import explain_match
+from Explainability_layer.explainability import explain_match
 
 st.set_page_config(page_title="VTC Matching Dashboard", layout="wide")
 
@@ -68,9 +68,9 @@ div[data-testid="stMarkdownContainer"] *:hover { color: inherit !important; }
 
 @st.cache_data
 def load_data():
-    trainers = pd.read_excel("Semantic_matching/semantic_matching__client_trainer_dataset.xlsx", sheet_name="trainers")
-    metrics = pd.read_csv("outputs/weight_optimisation_metrics.csv")
-    with open("outputs/optimised_weight_profile.json") as f:
+    trainers = pd.read_excel("../Semantic_matching/semantic_matching__client_trainer_dataset.xlsx", sheet_name="trainers")
+    metrics = pd.read_csv("../outputs/weight_optimisation_metrics.csv")
+    with open("../outputs/optimised_weight_profile.json") as f:
         weights = json.load(f)
     return trainers, metrics, weights
 
