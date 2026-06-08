@@ -19,8 +19,8 @@ import json
 from functools import lru_cache
 import pandas as pd
 
-CSV_PATH     = "Client-Trainer_Match_Result.csv"
-EXCEL_PATH   = "semantic_matching__client_trainer_dataset.xlsx"
+CSV_PATH     = "Weight_optimization/Client-Trainer_Match_Result.csv"
+EXCEL_PATH   = "Semantic_matching/semantic_matching__client_trainer_dataset.xlsx"
 WEIGHTS_PATH = "outputs/optimised_weight_profile.json"
 
 STRONG = 0.65
