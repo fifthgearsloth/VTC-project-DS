@@ -11,7 +11,7 @@ from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_sc
 from sklearn.model_selection import train_test_split
 
 
-DATA_PATH = Path("Client-Trainer_Match_Result.csv")
+DATA_PATH = Path("Weight_optimization/Client-Trainer_Match_Result.csv")
 OUTPUT_DIR = Path("outputs")
 
 TARGET_COLUMN = "match_outcome"
